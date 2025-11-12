@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# Git hook to run basic checks before commit
+# This hook is triggered before git commit
+
+# Load common utilities
+# When installed in .git/hooks/, this goes up to project root, then to .githooks/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$SCRIPT_DIR/.githooks/common.sh"
+
+section "Running pre-commit checks..."
+
+# Check for files that are too large
+large_files=$(get_staged_files | while read -r file; do
+    if [ -f "$file" ]; then
+        file_size=$(wc -c < "$file")
+        if [ "$file_size" -gt "$MAX_FILE_SIZE" ]; then
+            echo "$file ($(human_readable_size "$file_size"))"
+        fi
+    fi
+done)
+
+if [ -n "$large_files" ]; then
+    error "Large files detected:"
+    echo "$large_files" | while read -r line; do
+        echo -e "  $line"
+    done
+    echo ""
+    section "Consider:"
+    echo -e "  1. Adding large files to .gitignore"
+    echo -e "  2. Using Git LFS for large binary files"
+    echo -e "  3. Storing large datasets elsewhere"
+    echo ""
+    echo -e "To bypass this check: ${YELLOW}git commit --no-verify${NC}"
+    exit 1
+fi
+
+# Check for potential secrets or sensitive data (exclude documentation)
+sensitive_files=$(get_staged_files | while read -r file; do
+    # Skip README and documentation files
+    if [[ "$file" =~ README|USAGE|CONTRIBUTING|\.md$ ]]; then
+        continue
+    fi
+    if [ -f "$file" ] && contains_secrets "$file"; then
+        echo "$file"
+    fi
+done | sort -u)
+
+if [ -n "$sensitive_files" ]; then
+    error "Potential secrets detected in:"
+    echo "$sensitive_files" | while read -r file; do
+        echo -e "  $file"
+    done
+    echo ""
+    section "Please review these files for:"
+    echo -e "  • Hardcoded passwords"
+    echo -e "  • API keys"
+    echo -e "  • Secret tokens"
+    echo -e "  • AWS credentials"
+    echo ""
+    section "Use environment variables instead!"
+    echo ""
+    echo -e "If this is a false positive: ${YELLOW}git commit --no-verify${NC}"
+    exit 1
+fi
+
+# Check for debug statements (exclude documentation and hook files)
+files_with_debug=$(get_staged_files | while read -r file; do
+    # Skip README, documentation files, and .githooks directory
+    if [[ "$file" =~ README|USAGE|CONTRIBUTING|\.md$|\.githooks/ ]]; then
+        continue
+    fi
+    if [ -f "$file" ] && contains_debug "$file"; then
+        echo "$file"
+    fi
+done | sort -u)
+
+if [ -n "$files_with_debug" ]; then
+    warning "Debug statements detected in:"
+    echo "$files_with_debug" | while read -r file; do
+        echo -e "  $file"
+    done
+    echo ""
+    if ! ask_yes_no "Continue anyway?"; then
+        error "Commit cancelled"
+        exit 1
+    fi
+fi
+
+success "Pre-commit checks passed"
+exit 0
+

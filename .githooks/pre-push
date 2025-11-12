@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Git hook to validate branch naming convention
+# This hook is triggered before git push
+
+# Load common utilities
+# When installed in .git/hooks/, this goes up to project root, then to .githooks/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$SCRIPT_DIR/.githooks/common.sh"
+
+# Get current branch name
+current_branch=$(get_current_branch)
+
+# Allow main branch
+if is_main_branch; then
+    success "Pushing to main branch"
+    exit 0
+fi
+
+# Validate branch name
+if validate_branch_name "$current_branch"; then
+    success "Branch name '${current_branch}' follows naming convention"
+    exit 0
+else
+    error "Invalid branch name: ${current_branch}"
+    echo ""
+    print_branch_guide
+    echo ""
+    section "To rename your branch:"
+    echo -e "  git branch -m ${current_branch} ${GREEN}feature/${NC}your-description"
+    echo ""
+    section "To bypass this hook (not recommended):"
+    echo -e "  git push --no-verify"
+    echo ""
+    exit 1
+fi
+
