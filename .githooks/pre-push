@@ -3,69 +3,35 @@
 # Git hook to validate branch naming convention
 # This hook is triggered before git push
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Load common utilities
+# When installed in .git/hooks/, this goes up to project root, then to .githooks/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$SCRIPT_DIR/.githooks/common.sh"
 
 # Get current branch name
-current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+current_branch=$(get_current_branch)
 
 # Allow main branch
-if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-    echo -e "${GREEN}✓${NC} Pushing to main branch"
+if is_main_branch; then
+    success "Pushing to main branch"
     exit 0
 fi
 
-# Define valid branch name patterns
-valid_patterns=(
-    "^feature/.+"
-    "^bugfix/.+"
-    "^hotfix/.+"
-    "^docs/.+"
-    "^refactor/.+"
-    "^test/.+"
-    "^chore/.+"
-    "^release/.+"
-)
-
-# Check if branch name matches any valid pattern
-branch_valid=false
-for pattern in "${valid_patterns[@]}"; do
-    if echo "$current_branch" | grep -qE "$pattern"; then
-        branch_valid=true
-        break
-    fi
-done
-
-if [ "$branch_valid" = true ]; then
-    echo -e "${GREEN}✓${NC} Branch name '${current_branch}' follows naming convention"
+# Validate branch name
+if validate_branch_name "$current_branch"; then
+    success "Branch name '${current_branch}' follows naming convention"
     exit 0
 else
-    echo -e "${RED}✗ Invalid branch name:${NC} ${current_branch}"
-    echo -e ""
-    echo -e "${YELLOW}Branch naming convention:${NC}"
-    echo -e "  ${GREEN}feature/${NC}description   - New features"
-    echo -e "  ${GREEN}bugfix/${NC}description    - Bug fixes"
-    echo -e "  ${GREEN}hotfix/${NC}description    - Critical production fixes"
-    echo -e "  ${GREEN}docs/${NC}description      - Documentation updates"
-    echo -e "  ${GREEN}refactor/${NC}description  - Code refactoring"
-    echo -e "  ${GREEN}test/${NC}description      - Test updates"
-    echo -e "  ${GREEN}chore/${NC}description     - Maintenance tasks"
-    echo -e "  ${GREEN}release/${NC}version      - Release branches"
-    echo -e ""
-    echo -e "${YELLOW}Examples:${NC}"
-    echo -e "  feature/add-momentum-strategy"
-    echo -e "  bugfix/fix-calculation-error"
-    echo -e "  hotfix/critical-api-fix"
-    echo -e ""
-    echo -e "${YELLOW}To rename your branch:${NC}"
+    error "Invalid branch name: ${current_branch}"
+    echo ""
+    print_branch_guide
+    echo ""
+    section "To rename your branch:"
     echo -e "  git branch -m ${current_branch} ${GREEN}feature/${NC}your-description"
-    echo -e ""
-    echo -e "${YELLOW}To bypass this hook (not recommended):${NC}"
+    echo ""
+    section "To bypass this hook (not recommended):"
     echo -e "  git push --no-verify"
-    echo -e ""
+    echo ""
     exit 1
 fi
 

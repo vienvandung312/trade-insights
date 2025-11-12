@@ -2,32 +2,41 @@
 
 # Script to install git hooks for trade-insights project
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Load common utilities (if available, otherwise define minimal colors)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/../.githooks/common.sh" ]; then
+    source "$SCRIPT_DIR/../.githooks/common.sh"
+else
+    # Minimal color definitions if common.sh not found
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+    success() { echo -e "${GREEN}✓${NC} $1"; }
+    error() { echo -e "${RED}✗${NC} $1"; }
+    warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+    section() { echo -e "${YELLOW}$1${NC}"; }
+    header() { echo -e "${BLUE}========================================${NC}"; echo -e "${BLUE}  $1${NC}"; echo -e "${BLUE}========================================${NC}"; }
+fi
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  Git Hooks Installation Script${NC}"
-echo -e "${BLUE}========================================${NC}"
+header "Git Hooks Installation Script"
 echo ""
 
 # Check if we're in a git repository
 if [ ! -d .git ]; then
-    echo -e "${RED}✗ Error: Not in a git repository${NC}"
+    error "Not in a git repository"
     echo -e "  Please run this script from the project root"
     exit 1
 fi
 
 # Check if .githooks directory exists
 if [ ! -d .githooks ]; then
-    echo -e "${RED}✗ Error: .githooks directory not found${NC}"
+    error ".githooks directory not found"
     exit 1
 fi
 
-echo -e "${YELLOW}This will install the following git hooks:${NC}"
+section "This will install the following git hooks:"
 echo -e "  • ${GREEN}pre-commit${NC}  - Checks for large files, secrets, and debug statements"
 echo -e "  • ${GREEN}pre-push${NC}    - Validates branch naming convention"
 echo -e "  • ${GREEN}commit-msg${NC}  - Validates commit message quality"
@@ -42,22 +51,22 @@ for hook in pre-commit pre-push commit-msg; do
 done
 
 if [ ${#existing_hooks[@]} -gt 0 ]; then
-    echo -e "${YELLOW}⚠ Warning: The following hooks already exist:${NC}"
+    warning "The following hooks already exist:"
     for hook in "${existing_hooks[@]}"; do
         echo -e "  • $hook"
     done
     echo ""
-    echo -e "Do you want to ${RED}overwrite${NC} them? [y/N] "
+    echo -ne "Do you want to ${RED}overwrite${NC} them? [y/N] "
     read -r response
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Installation cancelled${NC}"
+        warning "Installation cancelled"
         exit 0
     fi
     echo ""
 fi
 
 # Install hooks
-echo -e "${YELLOW}Installing hooks...${NC}"
+section "Installing hooks..."
 echo ""
 
 installed_count=0
@@ -65,17 +74,15 @@ for hook in pre-commit pre-push commit-msg; do
     if [ -f .githooks/$hook ]; then
         cp .githooks/$hook .git/hooks/$hook
         chmod +x .git/hooks/$hook
-        echo -e "${GREEN}✓${NC} Installed $hook"
+        success "Installed $hook"
         installed_count=$((installed_count + 1))
     else
-        echo -e "${YELLOW}⚠${NC} Hook not found: $hook"
+        warning "Hook not found: $hook"
     fi
 done
 
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  Installation Complete!${NC}"
-echo -e "${GREEN}========================================${NC}"
+header "Installation Complete!"
 echo ""
 echo -e "Installed ${GREEN}${installed_count}${NC} git hook(s)"
 echo ""
