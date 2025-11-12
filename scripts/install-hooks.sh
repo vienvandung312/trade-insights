@@ -2,23 +2,9 @@
 
 # Script to install git hooks for trade-insights project
 
-# Load common utilities (if available, otherwise define minimal colors)
+# Load common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/../.githooks/common.sh" ]; then
-    source "$SCRIPT_DIR/../.githooks/common.sh"
-else
-    # Minimal color definitions if common.sh not found
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    NC='\033[0m'
-    success() { echo -e "${GREEN}✓${NC} $1"; }
-    error() { echo -e "${RED}✗${NC} $1"; }
-    warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-    section() { echo -e "${YELLOW}$1${NC}"; }
-    header() { echo -e "${BLUE}========================================${NC}"; echo -e "${BLUE}  $1${NC}"; echo -e "${BLUE}========================================${NC}"; }
-fi
+source "$SCRIPT_DIR/common.sh"
 
 header "Git Hooks Installation Script"
 echo ""
@@ -56,9 +42,7 @@ if [ ${#existing_hooks[@]} -gt 0 ]; then
         echo -e "  • $hook"
     done
     echo ""
-    echo -ne "Do you want to ${RED}overwrite${NC} them? [y/N] "
-    read -r response
-    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    if ! ask_yes_no "Do you want to ${RED}overwrite${NC} them?" "N"; then
         warning "Installation cancelled"
         exit 0
     fi
@@ -84,31 +68,31 @@ done
 echo ""
 header "Installation Complete!"
 echo ""
-echo -e "Installed ${GREEN}${installed_count}${NC} git hook(s)"
+success "Installed ${installed_count} git hook(s)"
 echo ""
-echo -e "${YELLOW}What happens now:${NC}"
+section "What happens now:"
 echo ""
-echo -e "${BLUE}1. Branch Name Validation${NC}"
-echo -e "   When you push, branch names must follow:"
-echo -e "   • feature/your-description"
-echo -e "   • bugfix/your-description"
-echo -e "   • hotfix/your-description"
+info "Branch Name Validation"
+echo "   When you push, branch names must follow:"
+echo "   • feature/your-description"
+echo "   • bugfix/your-description"
+echo "   • hotfix/your-description"
 echo ""
-echo -e "${BLUE}2. Commit Message Validation${NC}"
-echo -e "   Commit messages must be:"
-echo -e "   • At least 10 characters long"
-echo -e "   • Descriptive (not just 'fix' or 'update')"
+info "Commit Message Validation"
+echo "   Commit messages must be:"
+echo "   • At least 10 characters long"
+echo "   • Descriptive (not just 'fix' or 'update')"
 echo ""
-echo -e "${BLUE}3. Pre-commit Checks${NC}"
-echo -e "   Before committing, checks for:"
-echo -e "   • Large files (>10MB)"
-echo -e "   • Hardcoded secrets/passwords"
-echo -e "   • Debug statements"
+info "Pre-commit Checks"
+echo "   Before committing, checks for:"
+echo "   • Large files (>$(human_readable_size $MAX_FILE_SIZE))"
+echo "   • Hardcoded secrets/passwords"
+echo "   • Debug statements"
 echo ""
-echo -e "${YELLOW}To bypass a hook (use sparingly):${NC}"
-echo -e "  git commit --no-verify"
-echo -e "  git push --no-verify"
+section "To bypass a hook (use sparingly):"
+echo "  git commit --no-verify"
+echo "  git push --no-verify"
 echo ""
-echo -e "${GREEN}Happy coding! 🚀${NC}"
+success "Happy coding! 🚀"
 echo ""
 

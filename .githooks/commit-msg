@@ -4,9 +4,9 @@
 # This hook is triggered when writing a commit message
 
 # Load common utilities
-# When installed in .git/hooks/, this goes up to project root, then to .githooks/
+# When installed in .git/hooks/, this goes up to project root, then to scripts/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$SCRIPT_DIR/.githooks/common.sh"
+source "$SCRIPT_DIR/scripts/common.sh"
 
 commit_msg_file=$1
 commit_msg=$(cat "$commit_msg_file")

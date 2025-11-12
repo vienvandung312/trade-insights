@@ -2,46 +2,59 @@
 
 # Script to uninstall git hooks for trade-insights project
 
-# Load common utilities (if available, otherwise define minimal colors)
+# Load common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/../.githooks/common.sh" ]; then
-    source "$SCRIPT_DIR/../.githooks/common.sh"
-else
-    # Minimal definitions if common.sh not found
-    GREEN='\033[0;32m'
-    RED='\033[0;31m'
-    YELLOW='\033[1;33m'
-    NC='\033[0m'
-    success() { echo -e "${GREEN}✓${NC} $1"; }
-    error() { echo -e "${RED}✗${NC} $1"; }
-    warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-    section() { echo -e "${YELLOW}$1${NC}"; }
-fi
+source "$SCRIPT_DIR/common.sh"
 
-section "Uninstalling git hooks..."
+header "Git Hooks Uninstallation"
 echo ""
 
 # Check if we're in a git repository
 if [ ! -d .git ]; then
     error "Not in a git repository"
+    echo "  Please run this script from the project root"
     exit 1
 fi
 
+info "Searching for installed hooks..."
+echo ""
+
 # Remove hooks
 removed_count=0
+hooks_to_remove=()
+
 for hook in pre-commit pre-push commit-msg; do
     if [ -f .git/hooks/$hook ]; then
-        rm .git/hooks/$hook
-        success "Removed $hook"
-        removed_count=$((removed_count + 1))
+        hooks_to_remove+=("$hook")
     fi
 done
 
-echo ""
-if [ $removed_count -gt 0 ]; then
-    success "Successfully removed ${removed_count} hook(s)"
-else
-    warning "No hooks were installed"
+if [ ${#hooks_to_remove[@]} -eq 0 ]; then
+    warning "No git hooks found to uninstall"
+    echo ""
+    exit 0
 fi
+
+section "Found ${#hooks_to_remove[@]} hook(s) to remove:"
+for hook in "${hooks_to_remove[@]}"; do
+    echo "  • $hook"
+done
+echo ""
+
+# Remove each hook
+for hook in "${hooks_to_remove[@]}"; do
+    rm .git/hooks/$hook
+    success "Removed $hook"
+    removed_count=$((removed_count + 1))
+done
+
+echo ""
+header "Uninstallation Complete!"
+echo ""
+success "Successfully removed ${removed_count} git hook(s)"
+echo ""
+info "Git hooks are now disabled"
+echo "  You can reinstall them anytime by running:"
+echo "  ${GREEN}./scripts/install-hooks.sh${NC}"
 echo ""
 
