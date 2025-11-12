@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Git hook to run basic checks before commit
+# This hook is triggered before git commit
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}"
+
+# Check for files that are too large (>10MB)
+max_file_size=$((10 * 1024 * 1024)) # 10MB in bytes
+
+large_files=$(git diff --cached --name-only --diff-filter=ACM | while read -r file; do
+    if [ -f "$file" ]; then
+        file_size=$(wc -c < "$file")
+        if [ "$file_size" -gt "$max_file_size" ]; then
+            echo "$file ($(numfmt --to=iec-i --suffix=B "$file_size"))"
+        fi
+    fi
+done)
+
+if [ -n "$large_files" ]; then
+    echo -e "${RED}✗ Large files detected:${NC}"
+    echo "$large_files" | while read -r line; do
+        echo -e "  $line"
+    done
+    echo -e ""
+    echo -e "${YELLOW}Consider:${NC}"
+    echo -e "  1. Adding large files to .gitignore"
+    echo -e "  2. Using Git LFS for large binary files"
+    echo -e "  3. Storing large datasets elsewhere"
+    echo -e ""
+    echo -e "To bypass this check: ${YELLOW}git commit --no-verify${NC}"
+    exit 1
+fi
+
+# Check for potential secrets or sensitive data
+secret_patterns=(
+    "password\s*=\s*['\"][^'\"]+['\"]"
+    "api[_-]?key\s*=\s*['\"][^'\"]+['\"]"
+    "secret\s*=\s*['\"][^'\"]+['\"]"
+    "token\s*=\s*['\"][^'\"]+['\"]"
+    "AKIA[0-9A-Z]{16}"  # AWS Access Key
+    "sk_live_[0-9a-zA-Z]{24}"  # Stripe Live Secret Key
+)
+
+sensitive_files=$(git diff --cached --name-only --diff-filter=ACM | while read -r file; do
+    if [ -f "$file" ]; then
+        for pattern in "${secret_patterns[@]}"; do
+            if grep -qiE "$pattern" "$file"; then
+                echo "$file"
+                break
+            fi
+        done
+    fi
+done | sort -u)
+
+if [ -n "$sensitive_files" ]; then
+    echo -e "${RED}✗ Potential secrets detected in:${NC}"
+    echo "$sensitive_files" | while read -r file; do
+        echo -e "  $file"
+    done
+    echo -e ""
+    echo -e "${YELLOW}Please review these files for:${NC}"
+    echo -e "  • Hardcoded passwords"
+    echo -e "  • API keys"
+    echo -e "  • Secret tokens"
+    echo -e "  • AWS credentials"
+    echo -e ""
+    echo -e "${YELLOW}Use environment variables instead!${NC}"
+    echo -e ""
+    echo -e "If this is a false positive: ${YELLOW}git commit --no-verify${NC}"
+    exit 1
+fi
+
+# Check for debug statements (optional - can be removed)
+debug_patterns=(
+    "console\.log"
+    "print\("
+    "debugger"
+    "binding\.pry"
+    "import pdb"
+)
+
+files_with_debug=$(git diff --cached --name-only --diff-filter=ACM | while read -r file; do
+    if [ -f "$file" ]; then
+        for pattern in "${debug_patterns[@]}"; do
+            if grep -qE "$pattern" "$file"; then
+                echo "$file"
+                break
+            fi
+        done
+    fi
+done | sort -u)
+
+if [ -n "$files_with_debug" ]; then
+    echo -e "${YELLOW}⚠ Debug statements detected in:${NC}"
+    echo "$files_with_debug" | while read -r file; do
+        echo -e "  $file"
+    done
+    echo -e ""
+    echo -e "Continue anyway? [y/N] "
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo -e "${RED}✗ Commit cancelled${NC}"
+        exit 1
+    fi
+fi
+
+echo -e "${GREEN}✓${NC} Pre-commit checks passed"
+exit 0
+
