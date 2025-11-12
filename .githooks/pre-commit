@@ -4,9 +4,9 @@
 # This hook is triggered before git commit
 
 # Load common utilities
-# When installed in .git/hooks/, this goes up to project root, then to .githooks/
+# When installed in .git/hooks/, this goes up to project root, then to scripts/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$SCRIPT_DIR/.githooks/common.sh"
+source "$SCRIPT_DIR/scripts/common.sh"
 
 section "Running pre-commit checks..."
 
